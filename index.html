@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GCS File Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0c0f;
+      --bg-2: #111418;
+      --bg-3: #181c22;
+      --bg-4: #1e242c;
+      --border: #242b35;
+      --border-2: #2d3645;
+      --text: #e8edf3;
+      --text-2: #8a95a3;
+      --text-3: #5a6370;
+      --accent: #00d4ff;
+      --accent-dim: rgba(0, 212, 255, 0.08);
+      --accent-border: rgba(0, 212, 255, 0.25);
+      --green: #00e5a0;
+      --green-dim: rgba(0, 229, 160, 0.08);
+      --orange: #ff8c42;
+      --orange-dim: rgba(255, 140, 66, 0.08);
+      --red: #ff4f5e;
+      --red-dim: rgba(255, 79, 94, 0.1);
+      --purple: #b57bee;
+      --purple-dim: rgba(181, 123, 238, 0.08);
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* LAYOUT */
+    .shell { display: flex; height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--bg-2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      position: relative;
+    }
+    .sidebar-brand {
+      padding: 22px 20px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-3);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .brand-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: -0.01em;
+    }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-group-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      padding: 14px 20px 6px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      cursor: pointer;
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+      user-select: none;
+    }
+    .nav-item:hover { color: var(--text); background: var(--bg-3); }
+    .nav-item.active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      border-left-color: var(--accent);
+    }
+    .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .connection-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+      margin-right: 6px;
+      box-shadow: 0 0 6px var(--green);
+    }
+    .connection-status { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+
+    /* MAIN */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-2);
+      flex-shrink: 0;
+    }
+    .topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .topbar-sub { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); margin-top: 1px; }
+    .topbar-actions { display: flex; gap: 10px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border-2);
+      background: var(--bg-3);
+      color: var(--text-2);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: var(--bg-4); color: var(--text); border-color: var(--border-2); }
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    .btn-primary:hover { background: #33ddff; border-color: #33ddff; }
+    .btn-danger { color: var(--red); border-color: rgba(255,79,94,0.3); }
+    .btn-danger:hover { background: var(--red-dim); }
+    .btn-sm { padding: 5px 11px; font-size: 12px; }
+    .btn-icon { padding: 7px; gap: 0; }
+
+    .content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+    /* PAGES */
+    .page { display: none; animation: fadeIn 0.2s ease; }
+    .page.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+
+    /* STAT CARDS */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+    .stat-card.blue::before { background: var(--accent); }
+    .stat-card.green::before { background: var(--green); }
+    .stat-card.orange::before { background: var(--orange); }
+    .stat-card.purple::before { background: var(--purple); }
+    .stat-label { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); letter-spacing: 0.08em; margin-bottom: 10px; }
+    .stat-value { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; font-family: var(--font-mono); }
+    .stat-card.blue .stat-value { color: var(--accent); }
+    .stat-card.green .stat-value { color: var(--green); }
+    .stat-card.orange .stat-value { color: var(--orange); }
+    .stat-card.purple .stat-value { color: var(--purple); }
+    .stat-sub { font-size: 11px; color: var(--text-3); margin-top: 6px; }
+
+    /* SECTION */
+    .section { margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 13px; font-weight: 600; color: var(--text); font-family: var(--font-mono); letter-spacing: 0.03em; }
+    .section-body {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--bg-3); }
+    th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 11px 16px;
+      font-size: 12.5px;
+      color: var(--text-2);
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg-3); }
+    td .filename { color: var(--text); font-weight: 500; font-size: 13px; }
+    td .filepath { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); margin-top: 2px; }
+
+    /* BADGES */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+    .badge-temp { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(255,140,66,0.2); }
+    .badge-perm { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,229,160,0.2); }
+    .badge-images { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(181,123,238,0.2); }
+    .badge-docs { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+
+    /* CHARTS (CSS-only bars) */
+    .chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 80px; padding: 0 4px; }
+    .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .bar {
+      width: 100%;
+      border-radius: 3px 3px 0 0;
+      min-height: 4px;
+      transition: height 0.5s cubic-bezier(.4,0,.2,1);
+      position: relative;
+    }
+    .bar-label { font-size: 9px; color: var(--text-3); font-family: var(--font-mono); }
+    .bar-val { font-size: 10px; color: var(--text-2); font-family: var(--font-mono); margin-top: 2px; }
+
+    /* DONUT (SVG) */
+    .donut-wrap { display: flex; align-items: center; gap: 24px; padding: 20px; }
+    .donut-legend { flex: 1; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .legend-label { font-size: 12px; color: var(--text-2); flex: 1; }
+    .legend-val { font-size: 12px; font-family: var(--font-mono); color: var(--text); }
+
+    /* UPLOAD PANEL */
+    .upload-area {
+      border: 2px dashed var(--border-2);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--bg-3);
+    }
+    .upload-area:hover, .upload-area.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .upload-icon { font-size: 36px; margin-bottom: 12px; }
+    .upload-text { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+    .upload-sub { font-size: 12px; color: var(--text-3); }
+    #fileInput { display: none; }
+
+    /* FORM GRID */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1/-1; }
+    label { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+    input, select {
+      background: var(--bg-3);
+      border: 1px solid var(--border-2);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border 0.15s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: var(--bg-3); }
+
+    /* PROGRESS */
+    .progress-bar-wrap { background: var(--bg-3); border-radius: 4px; height: 4px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+
+    /* CONVERT OPTIONS */
+    .convert-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
+    .convert-opt {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .convert-opt:hover { border-color: var(--border-2); background: var(--bg-3); }
+    .convert-opt.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+    .convert-opt-label { font-size: 11px; font-family: var(--font-mono); font-weight: 600; }
+    .convert-opt-desc { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+    .convert-opt.selected .convert-opt-desc { color: var(--accent); opacity: 0.7; }
+
+    /* TOAST */
+    #toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
+    .toast {
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.25s ease;
+      max-width: 320px;
+    }
+    .toast-success { background: var(--bg-3); border: 1px solid rgba(0,229,160,0.3); color: var(--green); }
+    .toast-error { background: var(--bg-3); border: 1px solid rgba(255,79,94,0.3); color: var(--red); }
+    .toast-info { background: var(--bg-3); border: 1px solid var(--accent-border); color: var(--accent); }
+    @keyframes toastIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(3px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-2);
+      border: 1px solid var(--border-2);
+      border-radius: 14px;
+      padding: 28px;
+      width: 520px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: modalIn 0.2s ease;
+    }
+    @keyframes modalIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:none; } }
+    .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+    /* FILTER BAR */
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-bar input, .filter-bar select { flex: 1; min-width: 140px; }
+
+    /* EMPTY STATE */
+    .empty { text-align: center; padding: 48px 24px; }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-text { font-size: 14px; color: var(--text-3); }
+
+    /* SLIDER */
+    input[type=range] {
+      padding: 0;
+      border: none;
+      accent-color: var(--accent);
+      height: 4px;
+      cursor: pointer;
+    }
+
+    /* TWO PANEL */
+    .two-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .panel-title { font-size: 12px; font-family: var(--font-mono); color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .two-panel, .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-label">Storage</div>
+      <div class="brand-name">⬡ FileVault</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group-label">Overview</div>
+      <div class="nav-item active" onclick="nav('dashboard')">
+        <span class="icon">▦</span> Dashboard
+      </div>
+      <div class="nav-group-label">Files</div>
+      <div class="nav-item" onclick="nav('upload')">
+        <span class="icon">↑</span> Upload
+      </div>
+      <div class="nav-item" onclick="nav('files')">
+        <span class="icon">≡</span> Browse Files
+      </div>
+      <!-- <div class="nav-group-label">Settings</div>
+      <div class="nav-item" onclick="nav('config')">
+        <span class="icon">⚙</span> Config
+      </div> -->
+    </nav>
+    <div class="sidebar-footer">
+      <span class="connection-dot" id="connDot"></span>
+      <span class="connection-status" id="connStatus">connecting...</span>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="pageTitle">Dashboard</div>
+        <div class="topbar-sub" id="pageSub">monitoring & file management</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-sm" onclick="refreshDashboard()">↻ Refresh</button>
+        <button class="btn btn-primary btn-sm" onclick="nav('upload')">↑ Upload File</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD ───────────────────────────── -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-label">TOTAL FILES</div>
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-sub">across all users</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">TOTAL SIZE</div>
+            <div class="stat-value" id="stat-size">—</div>
+            <div class="stat-sub">storage used</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-label">TEMP FILES</div>
+            <div class="stat-value" id="stat-temp">—</div>
+            <div class="stat-sub">pending promotion</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">PERMANENT</div>
+            <div class="stat-value" id="stat-perm">—</div>
+            <div class="stat-sub">finalized files</div>
+          </div>
+        </div>
+
+        <div class="two-panel">
+          <div class="panel">
+            <div class="panel-title">Zone Distribution</div>
+            <div class="donut-wrap">
+              <svg width="90" height="90" viewBox="0 0 90 90" id="donut-svg">
+                <circle cx="45" cy="45" r="35" fill="none" stroke="var(--border)" stroke-width="14"/>
+                <circle id="donut-temp" cx="45" cy="45" r="35" fill="none" stroke="var(--orange)" stroke-width="14"
+                  stroke-dasharray="0 220" stroke-dashoffset="55" stroke-linecap="round" style="transition:.6s ease"/>
+                <circle id="donut-perm" cx="45" cy="45" r="35" fill="none" stroke="var(--green)" stroke-width="14"
+                  stroke-dasharray="0 220" stroke-dashoffset="55" stroke-linecap="round" style="transition:.6s ease"/>
+              </svg>
+              <div class="donut-legend">
+                <div class="legend-item">
+                  <div class="legend-dot" style="background:var(--orange)"></div>
+                  <div class="legend-label">Temp</div>
+                  <div class="legend-val" id="legend-temp">0</div>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-dot" style="background:var(--green)"></div>
+                  <div class="legend-label">Permanent</div>
+                  <div class="legend-val" id="legend-perm">0</div>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-dot" style="background:var(--purple)"></div>
+                  <div class="legend-label">Images</div>
+                  <div class="legend-val" id="legend-images">0</div>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-dot" style="background:var(--accent)"></div>
+                  <div class="legend-label">Docs</div>
+                  <div class="legend-val" id="legend-docs">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">Storage Path Structure</div>
+            <pre style="font-family:var(--font-mono);font-size:11px;color:var(--text-3);line-height:1.8">
+<span style="color:var(--accent)">bucket/</span>
+├── <span style="color:var(--orange)">temp/</span>
+│   └── <span style="color:var(--text)">userId/</span>
+│       └── <span style="color:var(--text)">YYYY-MM-DD/</span>
+│           ├── <span style="color:var(--purple)">images/</span>
+│           └── <span style="color:var(--accent)">docs/</span>
+└── <span style="color:var(--green)">perm/</span>
+    └── <span style="color:var(--text)">userId/</span>
+        └── <span style="color:var(--text)">YYYY-MM-DD/</span>
+            ├── <span style="color:var(--purple)">images/</span>
+            └── <span style="color:var(--accent)">docs/</span></pre>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Recent Uploads</div>
+            <button class="btn btn-sm" onclick="nav('files')">View All →</button>
+          </div>
+          <div class="section-body">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>User</th>
+                    <th>Zone</th>
+                    <th>Category</th>
+                    <th>Size</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-tbody">
+                  <tr><td colspan="7"><div class="empty"><div class="empty-icon">⟳</div><div class="empty-text">Loading...</div></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── UPLOAD ──────────────────────────────── -->
+      <div class="page" id="page-upload">
+        <div class="two-panel">
+          <div>
+            <div class="section">
+              <div class="section-body" style="padding:24px">
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                  <div class="upload-icon">☁</div>
+                  <div class="upload-text">Drop files here or click to browse</div>
+                  <div class="upload-sub">Images (JPG, PNG, WEBP, GIF) · Documents (PDF, DOC, DOCX)</div>
+                </div>
+                <input type="file" id="fileInput" accept="image/*,.pdf,.doc,.docx" onchange="onFileSelect(this)"/>
+
+                <div id="selectedFileInfo" style="display:none;margin-top:16px;padding:14px;background:var(--bg-3);border-radius:8px;border:1px solid var(--border)">
+                  <div style="font-weight:600;font-size:13px;color:var(--text)" id="selFileName"></div>
+                  <div style="font-size:11px;color:var(--text-3);margin-top:4px;font-family:var(--font-mono)" id="selFileSize"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-header"><div class="section-title">Upload Options</div></div>
+              <div class="section-body" style="padding:20px">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>User ID</label>
+                    <input type="text" id="up-userId" placeholder="e.g. user_abc123" />
+                  </div>
+                  <div class="form-group">
+                    <label>Storage Zone</label>
+                    <select id="up-zone">
+                      <option value="temp">🟠 Temporary</option>
+                      <option value="perm">🟢 Permanent</option>
+                    </select>
+                  </div>
+                  <div class="form-group full">
+                    <label>Upload Method</label>
+                    <select id="up-method">
+                      <option value="server">Server-side (with conversion)</option>
+                      <option value="presign">Presigned URL (direct to GCS)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section">
+              <div class="section-header"><div class="section-title">Conversion</div></div>
+              <div class="section-body" style="padding:20px">
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:10px">Select target format (optional)</div>
+                <div class="convert-grid" id="convertGrid">
+                  <div class="convert-opt" onclick="selectConvert(this,'none')">
+                    <div class="convert-opt-label">None</div>
+                    <div class="convert-opt-desc">Keep original</div>
+                  </div>
+                  <div class="convert-opt" onclick="selectConvert(this,'jpg')">
+                    <div class="convert-opt-label">→ JPG</div>
+                    <div class="convert-opt-desc">JPEG image</div>
+                  </div>
+                  <div class="convert-opt" onclick="selectConvert(this,'png')">
+                    <div class="convert-opt-label">→ PNG</div>
+                    <div class="convert-opt-desc">Lossless</div>
+                  </div>
+                  <div class="convert-opt" onclick="selectConvert(this,'webp')">
+                    <div class="convert-opt-label">→ WEBP</div>
+                    <div class="convert-opt-desc">Modern format</div>
+                  </div>
+                  <div class="convert-opt" onclick="selectConvert(this,'pdf')">
+                    <div class="convert-opt-label">→ PDF</div>
+                    <div class="convert-opt-desc">Document</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-header"><div class="section-title">Compression</div></div>
+              <div class="section-body" style="padding:20px">
+                <div class="form-group" style="margin-bottom:14px">
+                  <label>Quality: <span id="qualityVal">85</span>%</label>
+                  <input type="range" min="10" max="100" value="85" id="up-quality"
+                    oninput="document.getElementById('qualityVal').textContent=this.value"/>
+                </div>
+                <div class="form-group">
+                  <label>Max Size (MB) — optional</label>
+                  <input type="number" id="up-maxsize" placeholder="e.g. 2" min="0.1" step="0.1"/>
+                </div>
+              </div>
+            </div>
+
+            <div id="uploadProgress" style="display:none;margin-bottom:16px">
+              <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;font-family:var(--font-mono)" id="progressLabel">Uploading...</div>
+              <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+            </div>
+
+            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doUpload()">
+              ↑ &nbsp;Upload File
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FILES ──────────────────────────────── -->
+      <div class="page" id="page-files">
+        <div class="filter-bar">
+          <input type="text" placeholder="User ID..." id="filter-userId"/>
+          <select id="filter-zone">
+            <option value="">All Zones</option>
+            <option value="temp">Temporary</option>
+            <option value="perm">Permanent</option>
+          </select>
+          <select id="filter-category">
+            <option value="">All Categories</option>
+            <option value="images">Images</option>
+            <option value="docs">Docs</option>
+          </select>
+          <input type="date" id="filter-date"/>
+          <button class="btn btn-primary btn-sm" onclick="loadFiles()">Search</button>
+          <button class="btn btn-sm" onclick="clearFilters()">Clear</button>
+        </div>
+
+        <div class="section-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>User</th>
+                  <th>Zone</th>
+                  <th>Category</th>
+                  <th>Size</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="files-tbody">
+                <tr><td colspan="7"><div class="empty"><div class="empty-icon">≡</div><div class="empty-text">Search for files above</div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CONFIG ──────────────────────────────── -->
+      <div class="page" id="page-config">
+        <div class="two-panel">
+          <div class="panel">
+            <div class="panel-title">GCS Configuration</div>
+            <div class="form-group" style="margin-bottom:14px">
+              <label>API Base URL</label>
+              <input type="text" id="cfg-baseUrl" value="/api/files"/>
+            </div>
+            <div class="form-group" style="margin-bottom:14px">
+              <label>Bucket Name</label>
+              <input type="text" id="cfg-bucket" placeholder="your-bucket-name" readonly style="color:var(--text-3)"/>
+            </div>
+            <div class="form-group" style="margin-bottom:14px">
+              <label>Signed URL Expiry</label>
+              <input type="text" id="cfg-expiry" placeholder="60 minutes" readonly style="color:var(--text-3)"/>
+            </div>
+            <button class="btn btn-sm" onclick="testConnection()">Test Connection</button>
+          </div>
+          <div class="panel">
+            <div class="panel-title">API Endpoints Reference</div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-3);line-height:2">
+              <div><span style="color:var(--green)">POST</span>  /api/files/presign-upload</div>
+              <div><span style="color:var(--green)">POST</span>  /api/files/presign-download</div>
+              <div><span style="color:var(--green)">POST</span>  /api/files/upload</div>
+              <div><span style="color:var(--accent)">GET</span>   /api/files</div>
+              <div><span style="color:var(--accent)">GET</span>   /api/files/metadata</div>
+              <div><span style="color:var(--orange)">PATCH</span> /api/files/metadata</div>
+              <div><span style="color:var(--purple)">POST</span>  /api/files/move</div>
+              <div><span style="color:var(--red)">DELETE</span> /api/files</div>
+              <div><span style="color:var(--accent)">GET</span>   /api/files/dashboard</div>
+              <div><span style="color:var(--accent)">GET</span>   /health</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <div class="modal-title">📄 File Details</div>
+    <div id="modal-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-detail')">Close</button>
+      <button class="btn btn-primary" id="modal-download-btn">↓ Download</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <div class="modal-title">🗑 Delete File</div>
+    <p style="color:var(--text-2);font-size:14px;margin-bottom:16px">Are you sure you want to permanently delete this file? This cannot be undone.</p>
+    <div class="form-group">
+      <label>Confirm User ID</label>
+      <input type="text" id="del-userId" placeholder="Enter userId to confirm"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-delete')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete Forever</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-move">
+  <div class="modal">
+    <div class="modal-title">↕ Move File</div>
+    <p style="color:var(--text-2);font-size:14px;margin-bottom:16px">Promote temp file to permanent storage, or vice versa.</p>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Target Zone</label>
+      <select id="move-zone">
+        <option value="perm">🟢 Permanent</option>
+        <option value="temp">🟠 Temporary</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>User ID</label>
+      <input type="text" id="move-userId" placeholder="userId"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-move')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmMove()">Move File</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const BASE = 'http://localhost:3000/api/v1';
+let selectedConvert = 'none';
+let currentFilePath = null;
+let currentFile = null;
+
+// ── NAVIGATION ──────────────────────────────────
+const pages = {
+  dashboard: { title: 'Dashboard', sub: 'monitoring & file management' },
+  upload:    { title: 'Upload File', sub: 'upload with optional conversion & compression' },
+  files:     { title: 'Browse Files', sub: 'list, filter, and manage your files' },
+  config:    { title: 'Configuration', sub: 'API and bucket settings' },
+};
+
+function nav(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${id}`)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.toLowerCase().includes(id === 'dashboard' ? 'dashboard' : id === 'upload' ? 'upload' : id === 'files' ? 'browse' : 'config'))
+      n.classList.add('active');
+  });
+  document.getElementById('pageTitle').textContent = pages[id]?.title || id;
+  document.getElementById('pageSub').textContent = pages[id]?.sub || '';
+  if (id === 'dashboard') refreshDashboard();
+}
+
+// ── TOAST ────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  const icons = { success: '✓', error: '✕', info: 'ℹ' };
+  el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── MODAL ────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── UTILS ────────────────────────────────────────
+function fmtSize(b) {
+  if (!b) return '—';
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(1) + ' MB';
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function zoneBadge(z) {
+  return z === 'temp' ? '<span class="badge badge-temp">TEMP</span>' : '<span class="badge badge-perm">PERM</span>';
+}
+function catBadge(c) {
+  return c === 'images' ? '<span class="badge badge-images">IMAGES</span>' : '<span class="badge badge-docs">DOCS</span>';
+}
+function fileRow(f) {
+  return `<tr>
+    <td>
+      <div class="filename">${escHtml(f.originalName || f.fileName)}</div>
+      <div class="filepath">${escHtml(f.filePath)}</div>
+    </td>
+    <td><code style="font-size:11px;color:var(--text-2)">${escHtml(f.userId)}</code></td>
+    <td>${zoneBadge(f.zone)}</td>
+    <td>${catBadge(f.category)}</td>
+    <td style="font-family:var(--font-mono);font-size:11px">${fmtSize(f.sizeBytes)}</td>
+    <td style="font-size:11px;color:var(--text-3)">${f.date}</td>
+    <td>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-icon" title="Download" onclick='downloadFile("${escHtml(f.filePath)}")'>↓</button>
+        <button class="btn btn-sm btn-icon" title="Details" onclick='showDetail(${JSON.stringify(JSON.stringify(f))})'>◉</button>
+        <button class="btn btn-sm btn-icon" title="Move" onclick='openMoveModal("${escHtml(f.filePath)}")'>↕</button>
+        <button class="btn btn-sm btn-danger btn-icon" title="Delete" onclick='openDeleteModal("${escHtml(f.filePath)}")'>🗑</button>
+      </div>
+    </td>
+  </tr>`;
+}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── DASHBOARD ────────────────────────────────────
+async function refreshDashboard() {
+  try {
+    const res = await fetch(`${BASE}/files/dashboard`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    const d = json.data;
+
+    document.getElementById('stat-total').textContent = d.totalFiles;
+    document.getElementById('stat-size').textContent = fmtSize(d.totalSizeBytes);
+    document.getElementById('stat-temp').textContent = d.filesByZone.temp || 0;
+    document.getElementById('stat-perm').textContent = d.filesByZone.perm || 0;
+    document.getElementById('legend-temp').textContent = d.filesByZone.temp || 0;
+    document.getElementById('legend-perm').textContent = d.filesByZone.perm || 0;
+    document.getElementById('legend-images').textContent = d.filesByCategory.images || 0;
+    document.getElementById('legend-docs').textContent = d.filesByCategory.docs || 0;
+
+    // Donut
+    const total = d.totalFiles || 1;
+    const circ = 2 * Math.PI * 35; // 219.9
+    const tempFrac = (d.filesByZone.temp || 0) / total;
+    const permFrac = (d.filesByZone.perm || 0) / total;
+    const tempLen = tempFrac * circ;
+    const permLen = permFrac * circ;
+    document.getElementById('donut-temp').setAttribute('stroke-dasharray', `${tempLen} ${circ - tempLen}`);
+    const permOffset = 55 + tempLen;
+    document.getElementById('donut-perm').setAttribute('stroke-dasharray', `${permLen} ${circ - permLen}`);
+    document.getElementById('donut-perm').setAttribute('stroke-dashoffset', String(-tempLen + 55));
+
+    // Recent uploads table
+    const tbody = document.getElementById('recent-tbody');
+    if (!d.recentUploads?.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">☁</div><div class="empty-text">No files yet. Upload your first file!</div></div></td></tr>`;
+    } else {
+      tbody.innerHTML = d.recentUploads.map(fileRow).join('');
+    }
+  } catch(e) {
+    toast('Failed to load dashboard: ' + e.message, 'error');
+  }
+}
+
+// ── CONNECTION CHECK ──────────────────────────────
+async function checkConnection() {
+  try {
+    const res = await fetch(`${BASE}/health`);
+    const json = await res.json();
+    document.getElementById('connDot').style.background = 'var(--green)';
+    document.getElementById('connDot').style.boxShadow = '0 0 6px var(--green)';
+    document.getElementById('connStatus').textContent = json.env?.bucket || 'connected';
+    document.getElementById('cfg-bucket').value = json.env?.bucket || '';
+    document.getElementById('cfg-expiry').value = '60 min';
+  } catch {
+    document.getElementById('connDot').style.background = 'var(--red)';
+    document.getElementById('connDot').style.boxShadow = '0 0 6px var(--red)';
+    document.getElementById('connStatus').textContent = 'disconnected';
+  }
+}
+
+async function testConnection() {
+  await checkConnection();
+  toast('Connection tested!', 'info');
+}
+
+// ── UPLOAD ───────────────────────────────────────
+function selectConvert(el, val) {
+  document.querySelectorAll('.convert-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedConvert = val;
+}
+
+function onFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  currentFile = file;
+  document.getElementById('selectedFileInfo').style.display = 'block';
+  document.getElementById('selFileName').textContent = file.name;
+  document.getElementById('selFileSize').textContent = fmtSize(file.size) + ' · ' + file.type;
+}
+
+// Drag & drop
+const ua = document.getElementById('uploadArea');
+ua.addEventListener('dragover', e => { e.preventDefault(); ua.classList.add('drag-over'); });
+ua.addEventListener('dragleave', () => ua.classList.remove('drag-over'));
+ua.addEventListener('drop', e => {
+  e.preventDefault();
+  ua.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    currentFile = file;
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    onFileSelect({ files: e.dataTransfer.files });
+  }
+});
+
+async function doUpload() {
+  if (!currentFile) return toast('Please select a file first', 'error');
+  const userId = document.getElementById('up-userId').value.trim();
+  if (!userId) return toast('Please enter a User ID', 'error');
+
+  const zone = document.getElementById('up-zone').value;
+  const method = document.getElementById('up-method').value;
+  const quality = document.getElementById('up-quality').value;
+  const maxSizeMB = document.getElementById('up-maxsize').value;
+  const targetFormat = selectedConvert !== 'none' ? selectedConvert : null;
+
+  document.getElementById('uploadProgress').style.display = 'block';
+  document.getElementById('progressBar').style.width = '10%';
+  document.getElementById('progressLabel').textContent = 'Preparing upload...';
+
+  try {
+    if (method === 'presign') {
+      // Presigned URL flow
+      document.getElementById('progressLabel').textContent = 'Getting presigned URL...';
+      document.getElementById('progressBar').style.width = '30%';
+
+      const body = {
+        userId, zone,
+        originalFileName: currentFile.name,
+        mimeType: currentFile.type,
+      };
+      if (targetFormat) body.conversion = { targetFormat };
+      if (quality || maxSizeMB) body.compression = {
+        quality: quality ? parseInt(quality) : undefined,
+        maxSizeMB: maxSizeMB ? parseFloat(maxSizeMB) : undefined,
+      };
+
+      const presignRes = await fetch(`${BASE}/files/presign-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const presignJson = await presignRes.json();
+      if (!presignJson.success) throw new Error(presignJson.error);
+
+      document.getElementById('progressLabel').textContent = 'Uploading directly to GCS...';
+      document.getElementById('progressBar').style.width = '60%';
+
+      await fetch(presignJson.data.uploadUrl, {
+        method: 'PUT',
+        headers: presignJson.data.headers,
+        body: currentFile,
+      });
+
+      document.getElementById('progressBar').style.width = '100%';
+      document.getElementById('progressLabel').textContent = 'Done!';
+      toast(`✓ Presigned upload complete! Path: ${presignJson.data.filePath}`, 'success');
+    } else {
+      // Server-side upload
+      document.getElementById('progressLabel').textContent = 'Uploading via server...';
+      document.getElementById('progressBar').style.width = '40%';
+
+      const formData = new FormData();
+      formData.append('file', currentFile);
+      formData.append('userId', userId);
+      formData.append('zone', zone);
+      if (targetFormat) formData.append('targetFormat', targetFormat);
+      if (quality) formData.append('quality', quality);
+      if (maxSizeMB) formData.append('maxSizeMB', maxSizeMB);
+      // ===== BUILD SIGNATURE =====
+      const method = 'POST';
+      const path = '/api/v1/files/upload'; // ⚠️ HARUS sama kayak backend
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+
+      const signature = await generateSignature({
+        method,
+        path,
+        timestamp,
+        userId,
+      });
+
+      // ===== REQUEST =====
+      const res = await fetch(`${BASE}/files/upload`, {
+        method: 'POST',
+        headers: {
+          'X-Timestamp': timestamp,
+          'X-Signature': signature,
+        },
+        body: formData,
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+
+      document.getElementById('progressBar').style.width = '100%';
+      document.getElementById('progressLabel').textContent = 'Done!';
+      toast(`✓ File uploaded! ${fmtSize(json.data.sizeBytes)} → ${json.data.filePath}`, 'success');
+    }
+
+    setTimeout(() => {
+      document.getElementById('uploadProgress').style.display = 'none';
+      document.getElementById('progressBar').style.width = '0%';
+    }, 2000);
+
+    currentFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('selectedFileInfo').style.display = 'none';
+
+  } catch(e) {
+    document.getElementById('progressBar').style.background = 'var(--red)';
+    document.getElementById('progressLabel').textContent = 'Error: ' + e.message;
+    toast('Upload failed: ' + e.message, 'error');
+  }
+}
+
+//generate signature
+async function generateSignature({ method, path, timestamp, userId }) {
+  const secret = 'eW9sb3NhamFrYXdhbg=='; // ⚠️ jangan di production
+
+  const payload = `${method}:${path}:${timestamp}:${userId || ''}`;
+
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signatureBuffer = await crypto.subtle.sign(
+    'HMAC',
+    cryptoKey,
+    encoder.encode(payload)
+  );
+
+  // convert ke hex (biar sama kayak backend)
+  const signatureArray = Array.from(new Uint8Array(signatureBuffer));
+  const signature = signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return signature;
+}
+
+// ── FILES ────────────────────────────────────────
+async function loadFiles() {
+  const tbody = document.getElementById('files-tbody');
+  tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">⟳</div><div class="empty-text">Loading...</div></div></td></tr>`;
+
+  const params = new URLSearchParams();
+  const userId = document.getElementById('filter-userId').value.trim();
+  const zone = document.getElementById('filter-zone').value;
+  const category = document.getElementById('filter-category').value;
+  const date = document.getElementById('filter-date').value;
+  if (userId) params.set('userId', userId);
+  if (zone) params.set('zone', zone);
+  if (category) params.set('category', category);
+  if (date) params.set('date', date);
+
+  try {
+    const res = await fetch(`${BASE}/files?${params}`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    const files = json.data.files;
+    if (!files.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No files found matching your filters</div></div></td></tr>`;
+    } else {
+      tbody.innerHTML = files.map(fileRow).join('');
+    }
+  } catch(e) {
+    toast('Failed to load files: ' + e.message, 'error');
+  }
+}
+
+function clearFilters() {
+  ['filter-userId','filter-zone','filter-category','filter-date'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = el.tagName === 'SELECT' ? '' : '';
+  });
+}
+
+// ── FILE ACTIONS ─────────────────────────────────
+async function downloadFile(filePath) {
+  try {
+    toast('Generating download link...', 'info');
+    const res = await fetch(`${BASE}/files/presign-download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    window.open(json.data.downloadUrl, '_blank');
+    toast('Download link opened!', 'success');
+  } catch(e) {
+    toast('Download failed: ' + e.message, 'error');
+  }
+}
+
+function showDetail(jsonStr) {
+  const f = JSON.parse(jsonStr);
+  const body = document.getElementById('modal-detail-body');
+  body.innerHTML = `
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      ${[
+        ['File Name', escHtml(f.originalName || f.fileName)],
+        ['File ID', escHtml(f.fileId)],
+        ['Path', `<code style="font-size:10px;color:var(--text-3)">${escHtml(f.filePath)}</code>`],
+        ['User ID', `<code>${escHtml(f.userId)}</code>`],
+        ['Zone', zoneBadge(f.zone)],
+        ['Category', catBadge(f.category)],
+        ['MIME Type', `<code style="font-size:10px">${escHtml(f.mimeType)}</code>`],
+        ['Size', fmtSize(f.sizeBytes)],
+        ['Date', f.date],
+        ['Uploaded', fmtDate(f.createdAt)],
+        ['Conversion', f.conversionApplied || 'none'],
+        ['Compressed', f.compressionApplied ? 'yes' : 'no'],
+      ].map(([k,v]) => `<tr>
+        <td style="padding:8px 0;color:var(--text-3);font-family:var(--font-mono);font-size:10px;width:130px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em">${k}</td>
+        <td style="padding:8px 0;border-bottom:1px solid var(--border)">${v}</td>
+      </tr>`).join('')}
+    </table>`;
+  document.getElementById('modal-download-btn').onclick = () => downloadFile(f.filePath);
+  currentFilePath = f.filePath;
+  openModal('modal-detail');
+}
+
+function openDeleteModal(filePath) {
+  currentFilePath = filePath;
+  document.getElementById('del-userId').value = '';
+  openModal('modal-delete');
+}
+
+async function confirmDelete() {
+  const userId = document.getElementById('del-userId').value.trim();
+  if (!userId) return toast('Enter a userId to confirm deletion', 'error');
+  try {
+    const res = await fetch(`${BASE}/files`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath: currentFilePath, userId }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    closeModal('modal-delete');
+    toast('File deleted', 'success');
+    loadFiles();
+    refreshDashboard();
+  } catch(e) {
+    toast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+function openMoveModal(filePath) {
+  currentFilePath = filePath;
+  document.getElementById('move-userId').value = '';
+  openModal('modal-move');
+}
+
+async function confirmMove() {
+  const userId = document.getElementById('move-userId').value.trim();
+  const targetZone = document.getElementById('move-zone').value;
+  if (!userId) return toast('Enter userId', 'error');
+  try {
+    const res = await fetch(`${BASE}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromPath: currentFilePath, userId, targetZone }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    closeModal('modal-move');
+    toast(`File moved to ${targetZone}`, 'success');
+    loadFiles();
+  } catch(e) {
+    toast('Move failed: ' + e.message, 'error');
+  }
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ── INIT ─────────────────────────────────────────
+checkConnection();
+refreshDashboard();
+// Auto-select first convert option
+document.querySelector('.convert-opt').classList.add('selected');
+</script>
+</body>
+</html>
